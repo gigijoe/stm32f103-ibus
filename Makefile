@@ -84,7 +84,8 @@ CFLAGS	= $(MCFLAGS)  $(OPTIMIZE)  $(DEFS) -I. -I./ $(STM32_INCLUDES)
 CFLAGS += -lm -lc -lnosys -Wl,-Map=$(PROJ_NAME).map -Wl,-T,stm32_flash.ld
 AFLAGS	= $(MCFLAGS) 
 
-SRC += stm32f10x_it.c Device/startup_stm32f10x_md_vl.s
+SRCS += stm32f10x_it.c 
+SRCS += ./Device/startup_stm32f10x_md_vl.s
 
 OBJDIR = .
 OBJ = $(SRC:%.c=$(OBJDIR)/%.o) 
