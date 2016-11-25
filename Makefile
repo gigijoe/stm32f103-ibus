@@ -1,5 +1,5 @@
 # Please add all the appropriate src files, (*.o) targets
-SRCS= main.c system_stm32f10x.c
+SRCS= main.c system_stm32f10x.c usart.c
 
 # all the files will be generated with this name (main.elf, main.bin, main.hex, etc)
 PROJ_NAME=main
@@ -63,7 +63,7 @@ BIN=$(CP) -O ihex
 # HSE_VALUE sets the value of the HSE clock, 8MHz in this case 
 
 # PLEASE CHOOSE THE CORRECT MCU FOR YOUR APPLICATION
-MCU_FAMILY = STM32F10X_MD_VL
+MCU_FAMILY = STM32F10X_MD
 HSE_VALUE = 8000000
 
 # Default to selecting the STD_PERIPH_DRIVER
@@ -81,7 +81,7 @@ STM32_INCLUDES = -I$(CMSIS)/DeviceSupport/ST/STM32F10x/ \
 OPTIMIZE       = -Os
 
 CFLAGS	= $(MCFLAGS)  $(OPTIMIZE)  $(DEFS) -I. -I./ $(STM32_INCLUDES)
-CFLAGS += -lm -lc -lnosys -Wl,-Map=$(PROJ_NAME).map -Wl,-T,stm32_flash.ld
+CFLAGS += -lm -lc -lnosys -specs=nosys.specs -Wl,-Map=$(PROJ_NAME).map -Wl,-T,stm32_flash.ld
 AFLAGS	= $(MCFLAGS) 
 
 SRCS += stm32f10x_it.c 
@@ -119,6 +119,7 @@ clean:
 	rm -f $(PROJ_NAME).bin
 	rm -f $(PROJ_NAME).map
 	rm -f $(PROJ_NAME).lst
+	rm -f $(STD_PERIPH_LIB)/*.o
 
 reallyclean: clean
 	$(MAKE) -C $(STD_PERIPH_LIB) clean
