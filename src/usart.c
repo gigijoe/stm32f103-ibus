@@ -51,6 +51,7 @@ static char *Usart_Gets(UsartRx *ur)
 	static char str[MAX_RX_LEN];
 
 	if(ur->len) {
+		memset(str, 0, MAX_RX_LEN);
 		memcpy(str, ur->data, ur->len);
 		memset(ur->data, 0, MAX_RX_LEN);
 		ur->len = 0;
@@ -179,7 +180,7 @@ void Usart2_Init(uint32_t baudrate)
 	DMA_DeInit(DMA1_Channel7);
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST; // Transmit
 	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)usart2_tx_data;
-	DMA_InitStructure.DMA_BufferSize = 0;
+	DMA_InitStructure.DMA_BufferSize = MAX_TX_LEN;
 	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&USART2->DR;
 	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
 	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
@@ -347,6 +348,9 @@ static char usart3_tx_data[MAX_TX_LEN];
 
 static char usart3_rx_data[MAX_RX_LEN];
 static UsartRx usart3_rx = {{0}}; /* Since the first member in the structure is an array so it need: {{0}}; */
+#ifdef USART3_LIN_BUS
+static bool_t linBusBusy = false;
+#endif
 
 void Usart3_Init(uint32_t baudrate)
 {
@@ -421,7 +425,7 @@ void Usart3_Init(uint32_t baudrate)
 	DMA_DeInit(DMA1_Channel2);
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST; // Transmit
 	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)usart3_tx_data;
-	DMA_InitStructure.DMA_BufferSize = 0;
+	DMA_InitStructure.DMA_BufferSize = MAX_TX_LEN;
 	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&USART3->DR;
 	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
 	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
@@ -524,6 +528,8 @@ void Usart3_Printf(const char *fmt, ...)
 void Usart3_Write(uint8_t *data, uint8_t len)
 {
 #ifdef USART3_LIN_BUS
+	while(linBusBusy);
+
 	USART_SendBreak(USART3);
 #endif
 #if USART_TX_DMA
@@ -581,11 +587,15 @@ void USART3_IRQHandler(void)
         DMA_SetCurrDataCounter(DMA1_Channel3, MAX_RX_LEN);  
         //打开DMA  
         DMA_Cmd(DMA1_Channel3, ENABLE);  
+#ifdef USART3_LIN_BUS
+        linBusBusy = false;
+#endif
     }
 
 #ifdef USART3_LIN_BUS
 	if(USART_GetITStatus(USART3, USART_IT_LBD) != RESET) {
 		USART_ClearITPendingBit(USART3, USART_IT_LBD);     //清break中断位
+		linBusBusy = true;
 	}
 #endif
 }

@@ -6,10 +6,10 @@ AR=arm-none-eabi-ar
 vpath %.c src
 
 # Please make sure this matches your project folder as well!
-MCU_FAMILY = STM32F10X_MD_VL
+MCU_FAMILY = STM32F10X_HD
 
 CFLAGS  = -g -O2 -Wall
-CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m0 -march=armv6s-m
+CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m3 -march=armv7-m
 CFLAGS += -ffreestanding -nostdlib
 CFLAGS += -includestm32f10x_conf.h -ICMSIS/CM3/CoreSupport -ICMSIS/CM3/DeviceSupport/ST/STM32F10x -Iinc -I.
 CFLAGS += -D$(MCU_FAMILY)

@@ -26,6 +26,7 @@
 #include <string.h>
 
 #include "usart.h"
+#include "delay.h"
 
 static char *hextoa(uint8_t hex)
 {
@@ -406,6 +407,7 @@ GPIO_InitTypeDef GPIO_InitStructure;
   */
 int main(void)
 {
+  DelayInit();
 #if 0
   Usart3_Init(115200);
   Usart3_Puts("\r\nIBus Inspector v0.0.1");
@@ -417,16 +419,6 @@ int main(void)
 #endif
   GPIO_InitTypeDef GPIO_InitStructure;
 
-  /* GPIOB clock enable */
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(GPIOB, &GPIO_InitStructure);
-
-  GPIO_SetBits(GPIOB, GPIO_Pin_12); /* pull high */
-
   /* GPIOC clock enable */
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 
@@ -435,10 +427,10 @@ int main(void)
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-  GPIO_SetBits(GPIOC, GPIO_Pin_0); /* pull high */
-  GPIO_SetBits(GPIOC, GPIO_Pin_1); /* pull high */
-  GPIO_SetBits(GPIOC, GPIO_Pin_2); /* pull high */
-  GPIO_SetBits(GPIOC, GPIO_Pin_3); /* pull high */
+  GPIO_ResetBits(GPIOC, GPIO_Pin_0); /* pull low */
+  GPIO_ResetBits(GPIOC, GPIO_Pin_1); /* pull low */
+  GPIO_ResetBits(GPIOC, GPIO_Pin_2); /* pull low */
+  GPIO_ResetBits(GPIOC, GPIO_Pin_3); /* pull low */
 
   Usart2_Init(115200);
   Usart2_Puts("\r\nIBus Inspector v0.0.1");
@@ -448,6 +440,18 @@ int main(void)
   Usart2_Puts("\r\nIBus\\> ");
 
   Usart3_Init(9600);
+
+  /* GPIOB clock enable */
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12; /* NSLP */
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+  GPIO_ResetBits(GPIOB, GPIO_Pin_12); /* pull low */
+  DelayMs(5); 
+  GPIO_SetBits(GPIOB, GPIO_Pin_12); /* pull high to leave sleep mode */
 
   for(;;) {
     int len = Usart2_Poll();
@@ -492,7 +496,7 @@ int main(void)
         continue;
 
       Usart2_Puts("\r\n");
-
+#if 0
       Usart2_Printf("Source : %s\r\n", ibus_device_name(p[0]));
       Usart2_Printf("Length : %d\r\n", p[1]);
       Usart2_Printf("Destination : %s\r\n", ibus_device_name(p[2]));
@@ -515,6 +519,33 @@ int main(void)
           Usart2_Puts("\r\n");
       }
       Usart2_Puts("\r\n");
+#else
+      Usart2_Printf("%s : %s\r\n", hextoa(p[0]), ibus_device_name(p[0]));
+      Usart2_Printf("%s : %s\r\n", hextoa(p[2]), ibus_device_name(p[2]));
+      int i;
+      for(i=0;i<len;i++) {
+        if(p[i] < 0x20 || p[i] > 0x7e)
+          Usart2_Write((uint8_t *)".", 1);
+        else
+          Usart2_Write((uint8_t *)&p[i], 1);
+#if 0        
+        if(i != 0 && i % 20 == 0)
+          Usart2_Puts("\r\n");
+#endif          
+      }
+      Usart2_Puts("\r\n");
+      for(i=0;i<len;i++) {
+        Usart2_Write((uint8_t *)hextoa(p[i]), 2);
+        Usart2_Write((uint8_t *)" ", 1);
+#if 0
+        if(i != 0 && i % 20 == 0)
+          Usart2_Puts("\r\n");
+#endif
+        if(i == 2 || i == (len - 2))
+          Usart2_Write((uint8_t *)"| ", 2);
+      }
+      Usart2_Puts("\r\n");
+#endif      
     }
   }
 }
