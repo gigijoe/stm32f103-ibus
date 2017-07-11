@@ -288,6 +288,33 @@ int IBus_SendRaw(int argc, char *argv[])
   return 0;
 }
 
+int IBus_Send2(uint8_t src, uint8_t dest, uint8_t *data, uint8_t dataLen) 
+{
+  uint8_t code[MAX_TX_LEN];
+
+  code[0] = src; /* src */
+  /* code[1] : The length of the packet whithout Source ID and length it-self. */
+  code[2] = dest; /* dest */
+  int i, len = 1; /* dest length is 1 */
+  for(i=0;i<dataLen;i++) {
+    code[i+3] = data[i]; /* data */
+    len++;
+  }
+  len++; /* check sum length is 1 */
+  code[1] = len; 
+  code[i+3] = XOR_Checksum((uint8_t *)&code[0], len + 1);
+#if 0
+  Usart2_Puts("\r\n");
+  Usart2_Printf("Source : %s\r\n", ibus_device_name(code[0]));
+  Usart2_Printf("Length : 0x%x\r\n", code[1]);
+  Usart2_Printf("Destination : %s\r\n", ibus_device_name(code[2]));
+  Usart2_Printf("CRC : %s\r\n", hextoa(code[i+3])); /* All exclude CRC itself */
+#endif
+  Usart3_Write(&code[0], len + 2);
+
+  return 0;
+}
+
 IBusState IBus_State() { return state; }
 
 uint8_t IBus_ValidSource(uint8_t id)
@@ -400,6 +427,88 @@ GPIO_InitTypeDef GPIO_InitStructure;
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
+/*
+*
+*/
+
+static uint32_t tim4Tick = 0;
+
+void Tim4_Init(void)
+{
+  NVIC_InitTypeDef NVIC_InitStructure;
+  
+  /* NVIC_PriorityGroup */
+  NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+  NVIC_InitStructure.NVIC_IRQChannel = TIM4_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStructure);
+
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+  //基础设置，时基和比较输出设置，由于这里只需定时，所以不用OC比较输出
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4,ENABLE);
+  
+  TIM_DeInit(TIM4);
+
+  TIM_TimeBaseStructure.TIM_Period = 1000;//装载值
+  //prescaler is 72, that is 72000000/72/1000 = 1000Hz;
+  TIM_TimeBaseStructure.TIM_Prescaler = 71;//分频系数
+  //set clock division 
+  TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1; //or TIM_CKD_DIV2 or TIM_CKD_DIV4
+  //count up
+  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+  
+  TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
+  //clear the TIM4 overflow interrupt flag
+  TIM_ClearFlag(TIM4, TIM_FLAG_Update);
+  //TIM4 overflow interrupt enable
+  TIM_ITConfig(TIM4, TIM_IT_Update, ENABLE);
+  //enable TIM4
+  TIM_Cmd(TIM4, DISABLE);
+}
+
+void Tim4_Enable(void)
+{
+  TIM_Cmd(TIM4, ENABLE);
+}
+
+static uint32_t tim4Tick_1ms = 0;
+
+void Tim4_1ms(void)
+{
+}
+
+static uint32_t tim4Tick_10ms = 0;
+
+void Tim4_10ms(void)
+{
+}
+
+static uint32_t tim4Tick_50ms = 0;
+
+void Tim4_50ms(void)
+{  
+/*  
+  uint8_t d2[] = { 0x01 };
+  IBus_Send2(0xc0, 0x68, d2, 1);
+*/
+}
+
+static uint32_t tim4Tick_100ms = 0;
+
+void Tim4_100ms(void)
+{
+}
+
+static uint32_t tim4Tick_200ms = 0;
+
+void Tim4_200ms(void)
+{
+/*
+*/
+}
+
 /**
   * @brief  Main program.
   * @param  None
@@ -432,6 +541,9 @@ int main(void)
   GPIO_ResetBits(GPIOC, GPIO_Pin_2); /* pull low */
   GPIO_ResetBits(GPIOC, GPIO_Pin_3); /* pull low */
 
+  Tim4_Init();
+  Tim4_Enable();
+
   Usart2_Init(115200);
   Usart2_Puts("\r\nIBus Inspector v0.0.1");
   Usart2_Puts("\r\nAuthor : Steve Chang");
@@ -453,7 +565,38 @@ int main(void)
   DelayMs(5); 
   GPIO_SetBits(GPIOB, GPIO_Pin_12); /* pull high to leave sleep mode */
 
+  uint32_t tick_1ms = tim4Tick_1ms;
+  uint32_t tick_10ms = tim4Tick_10ms;
+  uint32_t tick_50ms = tim4Tick_50ms;
+  uint32_t tick_100ms = tim4Tick_100ms;
+  uint32_t tick_200ms = tim4Tick_200ms;
+
   for(;;) {
+    if(tick_1ms != tim4Tick_1ms) {
+      tick_1ms = tim4Tick_1ms;
+      Tim4_1ms();
+    }
+
+    if(tick_10ms != tim4Tick_10ms) {
+      tick_10ms = tim4Tick_10ms;
+      Tim4_10ms();
+    }
+
+    if(tick_50ms != tim4Tick_50ms) {
+      tick_50ms = tim4Tick_50ms;
+      Tim4_50ms();
+    }
+
+    if(tick_100ms != tim4Tick_100ms) {
+      tick_100ms = tim4Tick_100ms;
+      Tim4_100ms();
+    }
+
+    if(tick_200ms != tim4Tick_200ms) {
+      tick_200ms = tim4Tick_200ms;
+      Tim4_200ms();
+    }
+
     int len = Usart2_Poll();
     if(len > 0) {
       char *p = Usart2_Gets();
@@ -571,6 +714,25 @@ void assert_failed(uint8_t* file, uint32_t line)
 }
 
 #endif
+
+void TIM4_IRQHandler(void)
+{
+  if(TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET) {
+    tim4Tick++;
+    tim4Tick_1ms++;
+    if(tim4Tick % 10 == 0)
+      tim4Tick_10ms++;
+    if(tim4Tick % 50 == 0)
+      tim4Tick_50ms++;
+    if(tim4Tick % 100 == 0)
+      tim4Tick_100ms++;
+    if(tim4Tick % 200 == 0)
+      tim4Tick_200ms++;
+    //
+    // 清除 TIM2
+    TIM_ClearITPendingBit(TIM4, /*TIM_IT_Update*/ TIM_FLAG_Update);
+  }
+}
 
 /**
   * @}

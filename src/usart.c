@@ -375,7 +375,7 @@ void Usart3_Init(uint32_t baudrate)
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
 	USART_InitStructure.USART_BaudRate = baudrate;
-	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+	USART_InitStructure.USART_WordLength = USART_WordLength_9b; /* 8 bits data and 1 bit parity */
 	USART_InitStructure.USART_StopBits = USART_StopBits_1;
 #ifdef USART3_LIN_BUS
 	USART_InitStructure.USART_Parity = USART_Parity_Even;
@@ -495,9 +495,6 @@ void DMA1_Channel3_IRQHandler(void)
 
 void Usart3_Puts(char *string) 
 {
-#ifdef USART3_LIN_BUS
-	USART_SendBreak(USART3);
-#endif
 #if USART_TX_DMA
 	uint16_t len = strlen(string);  
 	if(len > MAX_TX_LEN)
@@ -530,7 +527,9 @@ void Usart3_Write(uint8_t *data, uint8_t len)
 #ifdef USART3_LIN_BUS
 	while(linBusBusy);
 
-	USART_SendBreak(USART3);
+	//USART_SendBreak(USART3);
+	//while (USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
+
 #endif
 #if USART_TX_DMA
 	if(len > MAX_TX_LEN)
@@ -539,8 +538,14 @@ void Usart3_Write(uint8_t *data, uint8_t len)
 	while (USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
 
 	DMA_Cmd(DMA1_Channel2, DISABLE);
+#ifdef USART3_LIN_BUS_SYNC
+	usart3_tx_data[0] = 0x55;
+	memcpy(&usart3_tx_data[1], data, len); 
+	DMA_SetCurrDataCounter(DMA1_Channel2, len+1);
+#else
 	memcpy(usart3_tx_data, data, len); 
 	DMA_SetCurrDataCounter(DMA1_Channel2, len);
+#endif	
 	DMA_Cmd(DMA1_Channel2, ENABLE);
 #else
 	Usart_Write(USART3, data, len);
