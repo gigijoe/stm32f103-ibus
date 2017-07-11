@@ -1,0 +1,105 @@
+BMW I-Bus Inspector
+
+@ E38 / E39 車系以 I-Bus 作為燈光/音響/導航/顯示等裝置間溝通的方式.
+
+從硬體上來看,IBus只有一條電線上面跑12V電壓的訊號.所有連接IBus的設備只有一個是master其於都是Slave.(也就是只有一個主控設備).在E38/E39車系IBus master就是LCM(俗稱燈光模組).IBus上所有裝置都可接收或發送訊號,對設備而言這是一條可以雙向溝通的訊號線.
+
+@ E38 / E39 車系還有 K-Bus 作為空調/防盜/座椅/行車監控等裝置間溝通的方式.
+
+由駕駛邊的儀表板負責連接並轉發 I-Bus / K-Bus 間的訊息
+
+@ 從軟體上來看 I-Bus 以 LIN Bus (ISO 9141) 訊號為基礎,資料傳輸速率 9600 8E1 (9600 bits/sec, 8bit date, Parity Even, 1 Stop bit)
+由於只有一條線讓所有設備發送訊號因此設備在發送訊號之前必須偵測IBus上是否有其他設備正在傳輸資料,一直等到IBus一段時間沒有資料才把資料傳輸出去.這個時間長度有不同的說法,大部分是說11ms.
+
+@ I-Bus 基本只是用了與 LIN Bus 相同的硬體而資料傳送協議不同. I-Bus在發送資料前不需要傳送break及sync byte. 一個message最多可以有32 bytes長度的資料 
+
+傳送的資料有固定的格式如下
+
+[Source ID][Length][Dest ID][Data][CRC]
+
+           |<--       Length       -->| 
+
+Source ID : 發出資料的裝置ID
+Length : 資料長度如標示
+Dest ID : 接收資料的裝置ID
+Date : 不定長度的資料
+CRC : 以XOR方式計算前面所有資料的CRC值
+
+@ IBus Inspector 架構
+                         Usart3               Usart2
+IBus <---> Transformer <--------> STM32F407 <-------> PC terminal
+                        9600 8E1            115200 8N1
+
+Transformer的功能為是將12V訊號轉為3.3V訊號.
+STM32F103負責接收IBus訊號並依據設定解析資料,透過Usart2將人看得懂的訊息送到電腦終端機.
+
+@ IBus Inspector 功能
+1.接收IBus上所有資料
+2.啟動或停止接收資料
+3.可過濾顯示Source及Destination ID
+4.顯示設備名稱
+5.顯示十六進位資料
+6.簡單的Shell操作界面
+
+例如方向盤下一首鍵被按下,資料顯示如下 
+
+Source : MFL Multi Functional Steering Wheel Buttons                            
+Length : 4                                                                      
+Destination : RAD Radio                                                         
+CRC : 06                                                                        
+P.h;..                                                                          
+50 04 68 3b 01 06                                                               
+
+@Transformer 線路
+
+hardware/lin_transformer.png
+
+@IBus
+
+需由車上拉出12V / GND / IBus三條線,由卡匣主機這邊拉線出來即可
+
+@Software
+
+IBus Inspector 原始碼由以下連結取得
+
+https://github.com/gigijoe/stm32f103-ibus
+
+
+Reference
+
+http://e38.org/bussystem.pdf
+
+http://web.comhem.se/bengt-olof.swing/IBus.htm
+
+http://web.comhem.se/mulle2/IBUSInsideDRAFTREV5.pdf
+
+http://www.mikrocontroller.net/articles/BusAnalyzer#Interfacing_STM32F103_and_a_LIN_Transceiver
+
+http://mono.software/2016/12/01/hacking-bmw-i-bus-with-raspberry-pi/
+
+#
+# BMW I-Bus monitor and decoder - GitHub
+#
+
+https://gist.github.com/birkir/5576736
+
+#
+# Arduino & BMW K/I-Bus Interface – Intro
+#
+
+http://curious.ninja/blog/arduino-bmw-i-bus-interface-intro/
+
+#
+# Arduino & BMW K/I-Bus Interface – Technical Details
+#
+
+http://curious.ninja/blog/arduino-bmw-i-bus-interface-technical-details/
+
+#
+# Arduino & BMW I/K Bus Interface – Integration
+#
+
+http://curious.ninja/blog/arduino-bmw-i-bus-interface-integration/
+
+
+
